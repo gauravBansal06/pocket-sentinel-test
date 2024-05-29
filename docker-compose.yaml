@@ -1,0 +1,47 @@
+version: '3.3'
+
+services:
+   db:
+     image: mysql:8
+     volumes:
+       - db_data:/var/lib/mysql
+     restart: always
+     ports:
+      - "3307:3306"
+     environment:
+       MYSQL_ROOT_PASSWORD: ${EXM_DB_PASSWORD}
+       MYSQL_DATABASE: ${EXM_DB_NAME}
+       MYSQL_USER: ${EXM_DB_USER}
+       MYSQL_PASSWORD: ${EXM_DB_PASSWORD}
+
+   migrate:
+      depends_on:
+       - exemplar
+      image: migrate/migrate
+      command: -path=/migrations/ -database "mysql://${EXM_DB_USER}:${EXM_DB_PASSWORD}@(db:${EXM_DB_PORT})/${EXM_DB_NAME}" -verbose up
+      deploy:
+        restart_policy:
+          condition: on-failure
+      volumes:
+      - ./db/migration:/migrations
+
+   exemplar:
+     depends_on:
+       - db
+     build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GITHUB_TOKEN: $GITHUB_TOKEN
+     ports:
+       - "9876:9876"
+       - "12000:12000"
+     restart: always
+     environment:
+       EXM_DB_HOST: db
+       EXM_DB_PORT: ${EXM_DB_PORT}
+       EXM_DB_USER: ${EXM_DB_USER}
+       EXM_DB_PASSWORD: ${EXM_DB_PASSWORD}
+       EXM_DB_NAME: ${EXM_DB_NAME}
+volumes:
+    db_data: {}
