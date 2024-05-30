@@ -38,13 +38,13 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 
 	var response AppResponse
 	if requestInfo.Action == "install" {
-		err = installApp(requestInfo)
+		err = installApp(requestInfo.OS, requestInfo.UDID, requestInfo.AppPath)
 	} else if requestInfo.Action == "uninstall" {
-		err = uninstallApp(requestInfo)
+		err = uninstallApp(requestInfo.OS, requestInfo.UDID, requestInfo.Package)
 	} else if requestInfo.Action == "launch" {
-		err = launchApp(requestInfo)
+		err = launchApp(requestInfo.OS, requestInfo.UDID, requestInfo.Package)
 	} else if requestInfo.Action == "kill" {
-		err = killApp(requestInfo)
+		err = killApp(requestInfo.OS, requestInfo.UDID, requestInfo.Package)
 	} else if requestInfo.Action == "apps" {
 		response.Apps = ListApps(requestInfo)
 	}
@@ -61,50 +61,50 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func installApp(requestInfo RequestInfo) error {
+func installApp(os, udid, appPath string) error {
 	var command string
-	filaPath, err := common.DownloadAppIfRequired(requestInfo.AppPath)
+	filePath, err := common.DownloadAppIfRequired(appPath)
 	if err == nil {
-		requestInfo.AppPath = filaPath
-		if requestInfo.OS == "android" {
-			command = fmt.Sprintf("%s -s %s install -t %s", common.Adb, requestInfo.UDID, requestInfo.AppPath)
+		appPath = filePath
+		if os == "android" {
+			command = fmt.Sprintf("%s -s %s install -t %s", common.Adb, udid, appPath)
 		} else {
-			instrument.ResigniOSApp(requestInfo.AppPath)
-			command = fmt.Sprintf("%s install --path=%s --udid %s", common.GoIOS, requestInfo.AppPath, requestInfo.UDID)
+			instrument.ResigniOSApp(appPath)
+			command = fmt.Sprintf("%s install --path=%s --udid %s", common.GoIOS, appPath, udid)
 		}
 		_, err = common.Execute(command)
 	}
 	return err
 }
 
-func uninstallApp(requestInfo RequestInfo) error {
+func uninstallApp(os, udid, bundle string) error {
 	var command string
-	if requestInfo.OS == "android" {
-		command = fmt.Sprintf("%s -s %s uninstall %s", common.Adb, requestInfo.UDID, requestInfo.Package)
+	if os == "android" {
+		command = fmt.Sprintf("%s -s %s uninstall %s", common.Adb, udid, bundle)
 	} else {
-		command = fmt.Sprintf("%s uninstall %s --udid %s", common.GoIOS, requestInfo.Package, requestInfo.UDID)
+		command = fmt.Sprintf("%s uninstall %s --udid %s", common.GoIOS, bundle, udid)
 	}
 	_, err := common.Execute(command)
 	return err
 }
 
-func launchApp(requestInfo RequestInfo) error {
+func launchApp(os, udid, bundle string) error {
 	var command string
-	if requestInfo.OS == "android" {
-		command = fmt.Sprintf("%s -s %s shell monkey -p %s -c android.intent.category.LAUNCHER 1", common.Adb, requestInfo.UDID, requestInfo.Package)
+	if os == "android" {
+		command = fmt.Sprintf("%s -s %s shell monkey -p %s -c android.intent.category.LAUNCHER 1", common.Adb, udid, bundle)
 	} else {
-		command = fmt.Sprintf("%s launch %s --udid %s", common.GoIOS, requestInfo.Package, requestInfo.UDID)
+		command = fmt.Sprintf("%s launch %s --udid %s", common.GoIOS, bundle, udid)
 	}
 	_, err := common.Execute(command)
 	return err
 }
 
-func killApp(requestInfo RequestInfo) error {
+func killApp(os, udid, bundle string) error {
 	var command string
-	if requestInfo.OS == "android" {
-		command = fmt.Sprintf("%s -s %s, shell am force-stop %s", common.Adb, requestInfo.UDID, requestInfo.Package)
+	if os == "android" {
+		command = fmt.Sprintf("%s -s %s, shell am force-stop %s", common.Adb, udid, bundle)
 	} else {
-		command = fmt.Sprintf("%s kill %s --udid %s", common.GoIOS, requestInfo.Package, requestInfo.UDID)
+		command = fmt.Sprintf("%s kill %s --udid %s", common.GoIOS, bundle, udid)
 	}
 	_, err := common.Execute(command)
 	return err

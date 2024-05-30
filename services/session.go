@@ -80,6 +80,7 @@ func SessionHandler(res http.ResponseWriter, req *http.Request) {
 
 	sessionID := getSessionID(req.URL.Path)
 	if sessionID == "" && req.URL.Path == "/wd/hub/session" && req.Method == "POST" {
+		go launchApp(testInfo.OS, testInfo.UDID, testInfo.AppPackage)
 		os.Create(fmt.Sprintf("%s/%s.json", common.AppDirs.TestInfo, testInfo.TestID))
 		port := startAppium(testInfo.UDID, testInfo.TestID)
 		targetURL := "http://localhost:" + port
@@ -143,7 +144,6 @@ func getSessionPayload(testInfo common.TestInfo) (io.ReadCloser, int64) {
 				AppiumAutomationName:          automationName,
 				AppiumNoReset:                 true,
 				AppiumAppPackage:              testInfo.AppPackage,
-				AppiumAppActivity:             testInfo.AppActivity,
 				AppiumEnsureWebviewsHavePages: true,
 				AppiumNativeWebScreenshot:     true,
 				AppiumNewCommandTimeout:       7200,
