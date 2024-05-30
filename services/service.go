@@ -25,11 +25,11 @@ func middleware(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		// basicAuthToken := r.Header.Get("Authorization")
-		// if basicAuthToken == "" || !isValidUser(basicAuthToken) {
-		// 	http.Error(w, "401 Unauthorized", http.StatusUnauthorized)
-		// 	return
-		// }
+		basicAuthToken := r.Header.Get("Authorization")
+		if basicAuthToken == "" || !isValidUser(basicAuthToken) {
+			http.Error(w, "401 Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }
