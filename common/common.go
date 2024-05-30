@@ -29,7 +29,6 @@ type AppDirectories struct {
 	CommandLogs  string
 	Applications string
 	BinaryLogs   string
-	DiskImages   string
 }
 
 var (
@@ -59,7 +58,6 @@ func init() {
 		BinaryLogs:   filepath.Join(homeDir, ".lambdatest", "binarylogs"),
 		Screenshots:  filepath.Join(homeDir, ".lambdatest", "screenshots"),
 		Applications: filepath.Join(homeDir, ".lambdatest", "applications"),
-		DiskImages:   filepath.Join(homeDir, ".lambdatest", "diskimages"),
 	}
 
 	dirs := []string{
@@ -72,7 +70,6 @@ func init() {
 		AppDirs.CommandLogs,
 		AppDirs.Screenshots,
 		AppDirs.Applications,
-		AppDirs.DiskImages,
 	}
 
 	for _, dir := range dirs {
