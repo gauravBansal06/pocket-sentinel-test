@@ -49,6 +49,8 @@ func Initialize() {
 
 	sanitize()
 
+	os.Setenv("ANDROID_HOME", common.AppDirs.Assets)
+
 	common.Adb = fmt.Sprintf("%s/adb", common.AppDirs.Assets)
 	common.GoIOS = fmt.Sprintf("%s/go-ios", common.AppDirs.Assets)
 }
@@ -88,10 +90,22 @@ func sanitize() {
 		common.Download(source, target)
 		common.Unzip(target, common.AppDirs.Assets)
 	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "android-sdk.zip")
+	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "npm")
 	_, err = os.Stat(target)
 	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "android-sdk.zip")
+		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "npm")
+		common.Download(source, target)
+	}
+	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "node")
+	_, err = os.Stat(target)
+	if err != nil {
+		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "node")
+		common.Download(source, target)
+	}
+	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "appium")
+	_, err = os.Stat(target)
+	if err != nil {
+		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "appium")
 		common.Download(source, target)
 	}
 }
