@@ -13,10 +13,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/mholt/archiver"
 )
 
 type AppDirectories struct {
@@ -29,6 +30,7 @@ type AppDirectories struct {
 	CommandLogs  string
 	Applications string
 	BinaryLogs   string
+	DiskImages   string
 }
 
 var (
@@ -36,51 +38,12 @@ var (
 	AppDirs              AppDirectories
 	Adb                  string
 	GoIOS                string
+	SanitisatioEndpoint  = "http://localhost:8080/assets"
 	AuthenticateEndpoint = "https://stage-accounts.lambdatestinternal.com/api/user/token/auth"
 	SyncEndpoint         = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
 	SyncToken            string
 	UserInfo             UserDetails
 )
-
-func init() {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Failed to get home directory: %s", err)
-	}
-
-	AppDirs = AppDirectories{
-		WorkingDir:   filepath.Join(homeDir, ".lambdatest"),
-		Assets:       filepath.Join(homeDir, ".lambdatest", "assets"),
-		TestInfo:     filepath.Join(homeDir, ".lambdatest", "tests"),
-		Videos:       filepath.Join(homeDir, ".lambdatest", "videos"),
-		CommandLogs:  filepath.Join(homeDir, ".lambdatest", "commandlogs"),
-		AppiumLogs:   filepath.Join(homeDir, ".lambdatest", "appiumlogs"),
-		BinaryLogs:   filepath.Join(homeDir, ".lambdatest", "binarylogs"),
-		Screenshots:  filepath.Join(homeDir, ".lambdatest", "screenshots"),
-		Applications: filepath.Join(homeDir, ".lambdatest", "applications"),
-	}
-
-	dirs := []string{
-		AppDirs.WorkingDir,
-		AppDirs.Assets,
-		AppDirs.TestInfo,
-		AppDirs.Videos,
-		AppDirs.BinaryLogs,
-		AppDirs.AppiumLogs,
-		AppDirs.CommandLogs,
-		AppDirs.Screenshots,
-		AppDirs.Applications,
-	}
-
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			log.Fatalf("Failed to create directory '%s': %s", dir, err)
-		}
-	}
-
-	Adb = fmt.Sprintf("%s/adb", AppDirs.Assets)
-	GoIOS = fmt.Sprintf("%s/go-ios", AppDirs.Assets)
-}
 
 func OS() string {
 	if runtime.GOOS == "darwin" {
@@ -209,18 +172,7 @@ func DownloadAppIfRequired(appPath string) (string, error) {
 			return appPath, err
 		}
 		filePath := fmt.Sprintf("%s/%s", AppDirs.Applications, path.Base(parsedURL.Path))
-		resp, err := http.Get(appPath)
-		if err != nil {
-			return appPath, err
-		}
-		defer resp.Body.Close()
-
-		out, err := os.Create(filePath)
-		if err != nil {
-			return appPath, err
-		}
-		defer out.Close()
-		_, err = io.Copy(out, resp.Body)
+		err = Download(appPath, filePath)
 		return filePath, err
 	}
 	return appPath, nil
@@ -293,4 +245,35 @@ func FindDeviceIP(udid, os string) (string, error) {
 
 	}
 	return "", errors.New("IP not found")
+}
+
+func Download(source, target string) error {
+	fmt.Println("Downloading", source, "at", target)
+	resp, err := http.Get(source)
+	if err != nil {
+		fmt.Println("Failed to download", source)
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	out.Chmod(0755)
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func Unzip(source, dest string) error {
+	zip := archiver.NewZip()
+	err := zip.Unarchive(source, dest)
+	os.Remove(source)
+	if err != nil {
+		fmt.Println("UnpackIPA: Couldn't unzip the file:", err)
+		return err
+	}
+	os.Remove(source)
+	return nil
 }

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -34,20 +34,13 @@ type ValidationInfo struct {
 	InstrumentedFallback bool   `json:"instrumentedFallback"`
 }
 
-func sendResponse(response ValidationResponse, w http.ResponseWriter) {
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func ValidationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var response ValidationResponse
 	response.Status = "success"
 
 	var validationInfo ValidationInfo
-	bodyBytes, err := ioutil.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusInternalServerError)
 		return
@@ -56,7 +49,7 @@ func ValidationHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error decoding request body: %v", err), http.StatusBadRequest)
 		return
 	}
-	r.Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
+	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	r.ContentLength = int64(len(bodyBytes))
 	r.Header.Set("Content-Length", strconv.Itoa(len(bodyBytes)))
 

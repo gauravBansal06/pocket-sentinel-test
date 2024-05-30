@@ -27,6 +27,9 @@ func main() {
 		fmt.Println("Unable to authenticate username and accesskey")
 		os.Exit(1)
 	}
+
+	services.Initialize()
+
 	common.UserInfo = userInfo
 	common.SyncToken = base64.StdEncoding.EncodeToString([]byte(userInfo.Username + ":" + userInfo.ApiToken))
 

@@ -208,13 +208,17 @@ func (dw *DeviceWatcher) keepAlive() {
 }
 
 func (dw *DeviceWatcher) syncDiskImages(udid, version string) error {
-	diskImagesPath := fmt.Sprintf("%s/diskimages/%s", common.AppDirs.Assets, version)
+	diskImagesPath := fmt.Sprintf("%s/%s", common.AppDirs.DiskImages, version)
 	_, err := os.Stat(diskImagesPath)
-	if err != nil {
-		return err
+	if err == nil {
+		return nil
 	}
 
-	// download disk image from cloud and write to path
+	source := fmt.Sprintf("%s/diskimages/%s.zip", common.SanitisatioEndpoint, version)
+	target := fmt.Sprintf("%s/%s.zip", common.AppDirs.DiskImages, version)
+	common.Download(source, target)
+	common.Unzip(target, common.AppDirs.DiskImages)
+
 	_, err = common.Execute(fmt.Sprintf("%s image auto --basedir=%s/diskimages --udid %s", common.GoIOS, common.AppDirs.Assets, udid))
 	return err
 }
