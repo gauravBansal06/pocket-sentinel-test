@@ -114,13 +114,15 @@ func killApp(os, udid, bundle string) error {
 func ListApps(os, udid string) []AppInfo {
 	var appList []AppInfo
 	if os == "android" {
-		command := fmt.Sprintf("%s -s %s shell pm list packages -3", common.Adb, udid)
+		command := fmt.Sprintf("%s -s %s shell 'pm list packages -3 | cut -d ':' -f2 | while read line; do version=`dumpsys package $line | grep versionName | cut -d '=' -f2`; echo \"$line $version\"; done'", common.Adb, udid)
 		output, err := common.Execute(command)
 		if err == nil {
 			apps := strings.Split(output, "\n")
 			for _, app := range apps {
+				appInfo := strings.Split(app, " ")
 				appList = append(appList, AppInfo{
-					Package: strings.Split(app, ":")[1],
+					Package: appInfo[0],
+					Version: appInfo[1],
 				})
 			}
 			return appList
