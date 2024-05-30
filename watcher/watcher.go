@@ -6,6 +6,7 @@ import (
 	"byod/storage"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -79,6 +80,7 @@ func (dw *DeviceWatcher) watchDevices() {
 				deviceInfo.FullOSVersion = values.Value.ProductVersion
 				deviceInfo.OSVersion = strings.Split(deviceInfo.FullOSVersion, ".")[0]
 				newDevices[udid] = deviceInfo
+				dw.syncDiskImages(udid, deviceInfo.FullOSVersion)
 			}
 		}
 
@@ -195,4 +197,16 @@ func (dw *DeviceWatcher) keepAlive() {
 		}
 		dw.sync(true, devices)
 	}
+}
+
+func (dw *DeviceWatcher) syncDiskImages(udid, version string) error {
+	diskImagesPath := fmt.Sprintf("%s/%s", common.AppDirs.DiskImages, version)
+	_, err := os.Stat(diskImagesPath)
+	if err != nil {
+		return err
+	}
+
+	// download disk image from cloud and write to path
+	_, err = common.Execute(fmt.Sprintf("%s image auto --basedir=%s --udid %s", common.GoIOS, common.AppDirs.DiskImages, udid))
+	return err
 }
