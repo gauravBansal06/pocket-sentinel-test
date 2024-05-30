@@ -61,7 +61,7 @@ func ValidationHandler(w http.ResponseWriter, r *http.Request) {
 	r.Header.Set("Content-Length", strconv.Itoa(len(bodyBytes)))
 
 	udid := validationInfo.UDID
-	deviceIp, err := common.FindDeviceIP(udid, validationInfo.OS)
+	deviceIp, _ := common.FindDeviceIP(udid, validationInfo.OS)
 	port, _ := common.GetForegroundApp(udid, validationInfo.Package, validationInfo.OS)
 	targetURL, _ := url.Parse(fmt.Sprintf("http://%s:%s", deviceIp, port))
 

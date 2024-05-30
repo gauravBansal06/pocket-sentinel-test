@@ -6,20 +6,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type RequestInfo struct {
-	OS      string
-	UDID    string
-	AppPath string
-	Package string
-	Action  string
+	OS      string `json:"os"`
+	UDID    string `json:"udid"`
+	AppPath string `json:"appPath"`
+	Package string `json:"package"`
+	Action  string `json:"action"`
 }
 
 type AppInfo struct {
-	Package string
-	Version string
-	Size    string
+	Name    string `json:"name"`
+	Package string `json:"package"`
+	Version string `json:"version"`
 }
 
 type AppResponse struct {
@@ -46,7 +47,7 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 	} else if requestInfo.Action == "kill" {
 		err = killApp(requestInfo.OS, requestInfo.UDID, requestInfo.Package)
 	} else if requestInfo.Action == "apps" {
-		response.Apps = ListApps(requestInfo)
+		response.Apps = ListApps(requestInfo.OS, requestInfo.UDID)
 	}
 
 	if err != nil {
@@ -110,7 +111,37 @@ func killApp(os, udid, bundle string) error {
 	return err
 }
 
-func ListApps(requestInfo RequestInfo) []AppInfo {
+func ListApps(os, udid string) []AppInfo {
 	var appList []AppInfo
+	if os == "android" {
+		command := fmt.Sprintf("%s -s %s shell pm list packages -3", common.Adb, udid)
+		output, err := common.Execute(command)
+		if err == nil {
+			apps := strings.Split(output, "\n")
+			for _, app := range apps {
+				appList = append(appList, AppInfo{
+					Package: strings.Split(app, ":")[1],
+				})
+			}
+			return appList
+		}
+		fmt.Println("error while getting app list", err)
+	} else {
+		command := fmt.Sprintf("%s apps --list --udid %s", common.GoIOS, udid)
+		output, err := common.Execute(command)
+		if err == nil {
+			apps := strings.Split(output, "\n")
+			for _, app := range apps {
+				appInfo := strings.Split(app, " ")
+				appList = append(appList, AppInfo{
+					Name:    appInfo[1],
+					Package: appInfo[0],
+					Version: appInfo[2],
+				})
+			}
+			return appList
+		}
+		fmt.Println("error while getting app list", err)
+	}
 	return appList
 }
