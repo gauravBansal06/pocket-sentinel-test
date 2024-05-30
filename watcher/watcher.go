@@ -80,7 +80,10 @@ func (dw *DeviceWatcher) watchDevices() {
 				deviceInfo.FullOSVersion = values.Value.ProductVersion
 				deviceInfo.OSVersion = strings.Split(deviceInfo.FullOSVersion, ".")[0]
 				newDevices[udid] = deviceInfo
-				dw.syncDiskImages(udid, deviceInfo.FullOSVersion)
+				err = dw.syncDiskImages(udid, deviceInfo.FullOSVersion)
+				if err == nil {
+					deviceInfo.Status = "ready"
+				}
 			}
 		}
 
@@ -95,7 +98,12 @@ func (dw *DeviceWatcher) watchDevices() {
 					UDID:   udid,
 					Status: "connected",
 				}
+
 				device := dw.AdbClient.Device(adb.DeviceWithSerial(udid))
+				state, _ := device.State()
+				if state.String() == "StateOnline" {
+					deviceInfo.Status = "ready"
+				}
 				deviceInfo.Name, _ = device.RunCommand("getprop ro.product.model")
 				deviceInfo.Name = strings.Trim(deviceInfo.Name, "\n")
 
