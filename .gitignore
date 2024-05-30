@@ -77,5 +77,5 @@ exemplar.log
 
 .ansible/ansible.cfg
 
-
+*.db
 .env
