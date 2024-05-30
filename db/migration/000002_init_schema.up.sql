@@ -1,1 +1,0 @@
-ALTER TABLE hosts RENAME COLUMN mac_sirra TO mac_sierra;
