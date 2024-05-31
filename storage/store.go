@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
-	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -27,7 +27,7 @@ func init() {
 	os.Remove("byod.db")
 	Store, err = Open()
 	if err != nil {
-		fmt.Println("Unable to open byod.db")
+		log.Println("Unable to open byod.db")
 	}
 }
 

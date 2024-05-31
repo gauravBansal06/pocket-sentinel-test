@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 )
@@ -23,7 +24,7 @@ func IsValidUser(token string) bool {
 	// Parse the token to retrieve credentials
 	creds, err := parseToken(token)
 	if err != nil {
-		fmt.Printf("Invalid token format: %s\n", err)
+		log.Printf("Invalid token format: %s\n", err)
 		return false
 	}
 
@@ -35,7 +36,7 @@ func IsValidUser(token string) bool {
 	// Authenticate the user with the credentials extracted from the token
 	userInfo, err := AuthenticateUser(creds.username, creds.password)
 	if err != nil {
-		fmt.Printf("Authentication failed for user: %s\n", creds.username)
+		log.Printf("Authentication failed for user: %s\n", creds.username)
 		return false
 	}
 
@@ -45,7 +46,7 @@ func IsValidUser(token string) bool {
 		return true
 	}
 
-	fmt.Printf("Authentication failed due to different organization for user: %s\n", creds.username)
+	log.Printf("Authentication failed due to different organization for user: %s\n", creds.username)
 	return false
 }
 

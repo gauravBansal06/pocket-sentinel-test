@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -47,6 +48,8 @@ func ValidationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close() // Ensure the body is closed
+
+	log.Println(r.URL, string(bodyBytes))
 
 	// Parse the JSON request body into ValidationInfo struct
 	var validationInfo ValidationInfo

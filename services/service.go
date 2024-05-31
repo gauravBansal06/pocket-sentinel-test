@@ -1,13 +1,13 @@
 package services
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 )
 
 // StartServer initializes and starts an HTTP server on a specified port.
 func StartServer() {
-	fmt.Println("Starting the HTTP Server on port 4723...")
+	log.Println("Starting the HTTP Server on port 4723...")
 	mux := http.NewServeMux()
 	setupRoutes(mux)
 	http.ListenAndServe(":4723", middleware(mux))

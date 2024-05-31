@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,11 +32,11 @@ func init() {
 
 func InstrumentIPA(ipaPath string) (string, error) {
 	if _, err := os.Stat(ipaPath); os.IsNotExist(err) {
-		fmt.Printf("File %s not found or not readable\n", ipaPath)
+		log.Printf("File %s not found or not readable\n", ipaPath)
 		return "", errors.New("File " + ipaPath + " not found or not readable\n")
 	}
 
-	fmt.Println("[+] Starting instrumentation...")
+	log.Println("[+] Starting instrumentation...")
 	tempDir = ipaPath + ".cache"
 	defer os.RemoveAll(tempDir)
 
@@ -58,10 +59,10 @@ func UnpackIPA(ipa string) (string, error) {
 	zip := archiver.NewZip()
 	err := zip.Unarchive(ipa, tempDir)
 	if err != nil {
-		fmt.Println("UnpackIPA: Couldn't unzip the IPA file:", err)
+		log.Println("UnpackIPA: Couldn't unzip the IPA file:", err)
 		return "", err
 	}
-	fmt.Println("[+] Unpacking the .ipa file DONE...")
+	log.Println("[+] Unpacking the .ipa file DONE...")
 	return "success", nil
 }
 
@@ -70,18 +71,18 @@ func getAppDirectory() (string, error) {
 	payloadPath := filepath.Join(tempDir, "Payload")
 	entries, err := os.ReadDir(payloadPath)
 	if err != nil {
-		fmt.Println("GetAppDirectory: Error reading Payload directory:", err)
+		log.Println("GetAppDirectory: Error reading Payload directory:", err)
 		return "", err
 	}
 	for _, entry := range entries {
 		if entry.IsDir() && filepath.Ext(entry.Name()) == ".app" {
 			appDir = filepath.Join(payloadPath, entry.Name())
-			fmt.Println("[+] Found app directory as ", appDir)
+			log.Println("[+] Found app directory as ", appDir)
 			return appDir, nil
 		}
 	}
 	if appDir == "" {
-		fmt.Println("GetAppDirectory: No .app directory found in Payload")
+		log.Println("GetAppDirectory: No .app directory found in Payload")
 		return "", errors.New("No .app directory found in Payload")
 	}
 	return "", nil
@@ -93,7 +94,7 @@ func copyLibraryAndLoad(appDir string) {
 	copyDir(dylibFolder, dylibPath)
 	appInfo, err := getAppInfo(appDir)
 	if err != nil {
-		fmt.Println("CopyLibraryAndLoad: Error getting app info:", err)
+		log.Println("CopyLibraryAndLoad: Error getting app info:", err)
 		return
 	}
 	appBinary := filepath.Join(appDir, appInfo.CFBundleExecutable)
@@ -101,7 +102,7 @@ func copyLibraryAndLoad(appDir string) {
 }
 
 func repackIPA(originalIPA string) (string, error) {
-	fmt.Println("[+] Repacking the .ipa")
+	log.Println("[+] Repacking the .ipa")
 	outputIPA := filepath.Base(originalIPA)
 	outputIPA = outputIPA[:len(outputIPA)-len(filepath.Ext(outputIPA))] + "-patched.zip"
 	outputPath := filepath.Dir(originalIPA)
@@ -113,13 +114,13 @@ func repackIPA(originalIPA string) (string, error) {
 	os.Remove(fullOutputPath)
 	err = archiver.Archive([]string{filepath.Join(tempDir, "Payload")}, fullOutputPath)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		return "", fmt.Errorf("RepackIPA: failed to compress the app into an .ipa file: %v", err)
 	}
 	ext := filepath.Ext(fullOutputPath)
 	finalOutput := fullOutputPath[:len(fullOutputPath)-len(ext)] + ".ipa"
 	os.Rename(fullOutputPath, finalOutput)
-	fmt.Println("[+] Wrote", finalOutput)
+	log.Println("[+] Wrote", finalOutput)
 	return finalOutput, nil
 }
 
@@ -133,11 +134,11 @@ func loadFrameworks(dir string, appBinary string) error {
 			binaryName := frameworkName[:len(frameworkName)-len(filepath.Ext(frameworkName))]
 			binaryPath := filepath.Join(path, binaryName)
 			if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-				fmt.Printf("LoadFrameworks: Binary not found for %s\n", frameworkName)
+				log.Printf("LoadFrameworks: Binary not found for %s\n", frameworkName)
 			} else {
 				cmd := exec.Command(optool, "install", "-c", "load", "-p", "@executable_path/Dylibs/"+frameworkName+"/"+binaryName, "-t", appBinary)
 				if err := cmd.Run(); err != nil {
-					fmt.Println("LoadFrameworks: Failed to inject ", binaryName, "into", appBinary, ":", err)
+					log.Println("LoadFrameworks: Failed to inject ", binaryName, "into", appBinary, ":", err)
 				}
 			}
 		}

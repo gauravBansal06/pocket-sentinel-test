@@ -11,7 +11,7 @@ import (
 // MakePostRequest sends a POST request to the specified endpoint with the given payload.
 // It returns the HTTP status code as a string, the response body as a byte slice, and any error encountered.
 func MakePostRequest(endpoint string, payload []byte) (string, []byte, error) {
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 
 	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {

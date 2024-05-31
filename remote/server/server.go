@@ -42,7 +42,7 @@ package server
 // 			for _, device := range devices {
 // 				targetPort := getAutomatorPort(device.UDID, port)
 // 				if targetPort != "" && common.IsPortAvailable(targetPort) {
-// 					fmt.Println("target port", targetPort)
+// 					log.Println("target port", targetPort)
 // 					go StartTCPListner(targetPort, targetPort)
 // 					time.Sleep(200 * time.Millisecond)
 // 				}
@@ -57,7 +57,7 @@ package server
 // 	cmd.Stdout = &out
 // 	err := cmd.Run()
 // 	if err != nil {
-// 		fmt.Println("Error executing adb command:", err)
+// 		log.Println("Error executing adb command:", err)
 // 		return ""
 // 	}
 

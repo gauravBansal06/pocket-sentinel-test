@@ -4,6 +4,7 @@ import (
 	"byod/common"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -38,6 +39,7 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("action", requestInfo.Action, "os", requestInfo.OS, "udid", requestInfo.UDID, "appPath", requestInfo.AppPath, "package", requestInfo.Package)
 	var response AppResponse
 	switch requestInfo.Action {
 	case "install":
@@ -63,7 +65,7 @@ func ApplicationHandler(w http.ResponseWriter, r *http.Request) {
 // executeAppAction processes the error from app management actions and returns the appropriate status.
 func executeAppAction(err error) string {
 	if err != nil {
-		fmt.Printf("ApplicationHandler: Error occurred: %v\n", err)
+		log.Printf("ApplicationHandler: Error occurred: %v\n", err)
 		return "failed"
 	}
 	return "success"
@@ -138,7 +140,7 @@ func ListApps(os, udid string) []AppInfo {
 			}
 			return appList
 		}
-		fmt.Println("error while getting app list", err)
+		log.Println("error while getting app list", err)
 	} else {
 		command := fmt.Sprintf("%s apps --list --udid %s", common.GoIOS, udid)
 		output, err := common.Execute(command)

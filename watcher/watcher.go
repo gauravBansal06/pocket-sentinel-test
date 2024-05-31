@@ -6,6 +6,7 @@ import (
 	"byod/storage"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -64,7 +65,7 @@ func (dw *DeviceWatcher) watchDevices() {
 		newDevices := make(map[string]DeviceInfo)
 		devices, err := ios.ListDevices()
 		if err != nil {
-			fmt.Println("Failed to list iOS devices:", err)
+			log.Println("Failed to list iOS devices:", err)
 		} else {
 			for _, device := range devices.DeviceList {
 				udid := device.Properties.SerialNumber
@@ -88,7 +89,7 @@ func (dw *DeviceWatcher) watchDevices() {
 
 		androidDevices, err := dw.AdbClient.ListDeviceSerials()
 		if err != nil {
-			fmt.Println("Failed to list Android devices:", err)
+			log.Println("Failed to list Android devices:", err)
 		} else {
 			for _, udid := range androidDevices {
 				deviceInfo := DeviceInfo{
@@ -118,23 +119,23 @@ func (dw *DeviceWatcher) watchDevices() {
 
 		for udid, device := range dw.OldDevices {
 			if _, ok := newDevices[udid]; !ok {
-				fmt.Println("Disconnected:", udid)
+				log.Println("Disconnected:", udid)
 				device.Status = "disconnected"
 				go dw.sync(false, []DeviceInfo{device})
 			}
 		}
 
 		for udid, device := range newDevices {
-			if oldDevice, ok := dw.OldDevices[udid]; !ok {
+			oldDevice, ok := dw.OldDevices[udid]
+			if !ok {
 				dw.setAppiumPort(udid)
-				fmt.Println("Connected:", udid)
+				log.Println("Connected:", udid)
 				device.Status = "connected"
 				go dw.sync(false, []DeviceInfo{device})
 				if device.OS == "ios" {
 					go dw.installRunner(udid)
 				}
-			} else if oldDevice.OS == "android" && device.Status == "StateOnline" && device.Status != oldDevice.Status {
-				device.Status = "ready"
+			} else if oldDevice.OS == "android" && oldDevice.Status == "connected" && device.Status == "ready" {
 				go dw.sync(false, []DeviceInfo{device})
 			}
 		}
@@ -148,7 +149,7 @@ func (dw *DeviceWatcher) installRunner(udid string) {
 	command := fmt.Sprintf("%s install --path=%s --udid %s", common.GoIOS, runner, udid)
 	_, err := common.Execute(command)
 	if err != nil {
-		fmt.Println("error while installing runner", err.Error())
+		log.Println("error while installing runner", err.Error())
 	}
 }
 
@@ -156,9 +157,9 @@ func (dw *DeviceWatcher) launchTunnel() {
 	common.Execute("pkill -SIGTERM remoted go-ios")
 	_, err := common.Execute(fmt.Sprintf("%s tunnel start --pair-record-path=/tmp", common.GoIOS))
 	if err != nil {
-		fmt.Println("Unable to launch tunnel")
+		log.Println("Unable to launch tunnel")
 	} else {
-		fmt.Println("Tunnel launched")
+		log.Println("Tunnel launched")
 	}
 }
 
@@ -183,18 +184,20 @@ func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
 		DedicatedOrg:              strconv.Itoa(common.UserInfo.Organization.OrgID),
 		Devices:                   devices,
 	}
+	for _, device := range devices {
+		log.Println("Marking", device.UDID, device.Status, "...")
+	}
 	jsonInfo, err := json.Marshal(hostInfo)
 	if err != nil {
-		fmt.Println("Error marshaling data: ", err.Error())
+		log.Println("Error marshaling data: ", err.Error())
 		return
 	}
-	fmt.Println(string(jsonInfo))
 	status, _, err := services.MakePostRequest(common.SyncEndpoint, jsonInfo)
 	if err != nil {
-		fmt.Println("Error while updating device info", err.Error())
+		log.Println("Error while updating device info", err.Error())
 		return
 	}
-	fmt.Println(status)
+	log.Println(status)
 }
 
 func (dw *DeviceWatcher) keepAlive() {

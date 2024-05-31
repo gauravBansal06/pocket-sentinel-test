@@ -6,7 +6,7 @@ import (
 	"byod/watcher"
 	"encoding/base64"
 	"flag"
-	"fmt"
+	"log"
 	"os"
 )
 
@@ -26,7 +26,7 @@ func parseFlags() (string, string) {
 	flag.Parse() // Parse all command-line flags.
 
 	if *user == "" || *key == "" {
-		fmt.Println("Both --user and --key flags are required.")
+		log.Println("Both --user and --key flags are required.")
 		flag.PrintDefaults() // Display default help messages for flags.
 		os.Exit(1)           // Exit the program with an error code.
 	}
@@ -37,7 +37,7 @@ func parseFlags() (string, string) {
 func authenticateUser(user, key string) common.UserDetails {
 	userInfo, err := services.AuthenticateUser(user, key)
 	if err != nil {
-		fmt.Println("Unable to authenticate username and access key:", err)
+		log.Println("Unable to authenticate username and access key:", err)
 		os.Exit(1) // Exit the program if authentication fails.
 	}
 	return userInfo // Return the authenticated user's details.
@@ -55,7 +55,7 @@ func initializeServices(userInfo common.UserDetails) {
 func startDeviceWatcher() {
 	deviceWatcher, err := watcher.NewDeviceWatcher() // Create a new device watcher.
 	if err != nil {
-		fmt.Println("Error initializing device watcher:", err)
+		log.Println("Error initializing device watcher:", err)
 		os.Exit(1) // Exit the program if the device watcher cannot be initialized.
 	}
 	go deviceWatcher.Watch() // Run the device watcher in a new goroutine.

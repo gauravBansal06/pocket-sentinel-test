@@ -55,7 +55,7 @@ func GetDeviceCommand(os string) string {
 	case "ios":
 		return GoIOS // Assuming 'GoIOS' is the path or command for the iOS management tool
 	default:
-		fmt.Printf("Unsupported OS: %s\n", os)
+		log.Printf("Unsupported OS: %s\n", os)
 		return "" // Return empty if the OS is not supported
 	}
 }
@@ -252,10 +252,10 @@ func FindDeviceIP(udid, os string) (string, error) {
 }
 
 func Download(source, target string) error {
-	fmt.Println("Downloading", source, "at", target)
+	log.Println("Downloading", source, "at", target)
 	resp, err := http.Get(source)
 	if err != nil {
-		fmt.Println("Failed to download", source)
+		log.Println("Failed to download", source)
 		return err
 	}
 	defer resp.Body.Close()
@@ -275,7 +275,7 @@ func Unzip(source, dest string) error {
 	err := zip.Unarchive(source, dest)
 	os.Remove(source)
 	if err != nil {
-		fmt.Println("UnpackIPA: Couldn't unzip the file:", err)
+		log.Println("UnpackIPA: Couldn't unzip the file:", err)
 		return err
 	}
 	os.Remove(source)
