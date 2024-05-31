@@ -155,7 +155,7 @@ func stopAppium(udid string) {
 // getSessionPayload generates the payload for starting a new Appium session.
 func getSessionPayload(testInfo common.TestInfo) (io.ReadCloser, int64) {
 	automationName := "UiAutomator2"
-	if testInfo.OS == "iOS" {
+	if testInfo.OS == "ios" {
 		automationName = "XCUITest"
 	}
 	payload := common.WebDriver{

@@ -2,12 +2,14 @@ package services
 
 import (
 	"byod/common"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 )
 
 // ValidationResponse defines the structure for API responses of validation requests.
@@ -44,6 +46,7 @@ func ValidationHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusInternalServerError)
 		return
 	}
+	defer r.Body.Close() // Ensure the body is closed
 
 	// Parse the JSON request body into ValidationInfo struct
 	var validationInfo ValidationInfo
@@ -59,9 +62,8 @@ func ValidationHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error parsing target URL: %v", err), http.StatusInternalServerError)
 		return
 	}
-
 	// Configure the reverse proxy
-	proxy := configureProxy(targetURL, validationInfo.Action)
+	proxy := configureProxy(targetURL, validationInfo.Action, bodyBytes)
 	proxy.ServeHTTP(w, r)
 }
 
@@ -73,18 +75,29 @@ func getDeviceNetworkConfig(udid, os, pkg string) (string, string) {
 }
 
 // configureProxy sets up a reverse proxy with specified target URL and action.
-func configureProxy(targetURL *url.URL, action string) *httputil.ReverseProxy {
+func configureProxy(targetURL *url.URL, action string, bodyBytes []byte) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 	proxy.Director = func(req *http.Request) {
 		req.URL.Scheme = targetURL.Scheme
 		req.URL.Host = targetURL.Host
 		req.Host = targetURL.Host
 		req.URL.Path = action
-		req.RequestURI = "" // Clear the RequestURI to prevent errors on client redirects
+		req.RequestURI = action // Clear the RequestURI to prevent errors on client redirects
+
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		req.ContentLength = int64(len(bodyBytes))
+		req.Header.Set("Content-Length", strconv.Itoa(len(bodyBytes)))
+
+		// Clone headers from original request
+		req.Header = make(http.Header)
+		for k, v := range req.Header {
+			req.Header[k] = v
+		}
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		resp.Header.Set("Connection", "close")
 		return nil
 	}
 	return proxy
+
 }

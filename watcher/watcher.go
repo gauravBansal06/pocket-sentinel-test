@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -126,7 +125,7 @@ func (dw *DeviceWatcher) watchDevices() {
 		}
 
 		for udid, device := range newDevices {
-			if _, ok := dw.OldDevices[udid]; !ok {
+			if oldDevice, ok := dw.OldDevices[udid]; !ok {
 				dw.setAppiumPort(udid)
 				fmt.Println("Connected:", udid)
 				device.Status = "connected"
@@ -134,6 +133,9 @@ func (dw *DeviceWatcher) watchDevices() {
 				if device.OS == "ios" {
 					go dw.installRunner(udid)
 				}
+			} else if oldDevice.OS == "android" && device.Status == "StateOnline" && device.Status != oldDevice.Status {
+				device.Status = "ready"
+				go dw.sync(false, []DeviceInfo{device})
 			}
 		}
 		dw.OldDevices = newDevices
@@ -152,8 +154,7 @@ func (dw *DeviceWatcher) installRunner(udid string) {
 
 func (dw *DeviceWatcher) launchTunnel() {
 	common.Execute("pkill -SIGTERM remoted go-ios")
-	cmd := exec.Command(common.GoIOS, "tunnel", "start", "--pair-record-path=/tmp")
-	err := cmd.Run()
+	_, err := common.Execute(fmt.Sprintf("%s tunnel start --pair-record-path=/tmp", common.GoIOS))
 	if err != nil {
 		fmt.Println("Unable to launch tunnel")
 	} else {
@@ -187,6 +188,7 @@ func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
 		fmt.Println("Error marshaling data: ", err.Error())
 		return
 	}
+	fmt.Println(string(jsonInfo))
 	status, _, err := services.MakePostRequest(common.SyncEndpoint, jsonInfo)
 	if err != nil {
 		fmt.Println("Error while updating device info", err.Error())

@@ -147,8 +147,7 @@ func ForwardLocalPortToProxy(port string, inconn net.Conn) {
 }
 
 func KillProcessOnPort(port string) error {
-	cmd := exec.Command("lsof", "-i", ":"+port)
-	output, err := cmd.Output()
+	output, err := Execute(fmt.Sprintf("lsof -i:%s", port))
 	if err != nil {
 		return fmt.Errorf("failed to execute lsof: %s", err)
 	}
@@ -163,8 +162,8 @@ func KillProcessOnPort(port string) error {
 		return fmt.Errorf("unexpected lsof output format")
 	}
 	pid := columns[1]
-	killCmd := exec.Command("kill", pid)
-	if err := killCmd.Run(); err != nil {
+	_, err = Execute(fmt.Sprintf("kill -9 %s", pid))
+	if err != nil {
 		return fmt.Errorf("failed to kill process: %s", err)
 	}
 	return nil
@@ -205,7 +204,7 @@ func GetPidByBundleId(bundleId, udid string) int {
 }
 
 func GetForegroundApp(udid, packageName, os string) (string, error) {
-	if os == "iOS" {
+	if os == "ios" {
 		cmd := exec.Command("pymobiledevice3", "developer", "dvt", "proclist", "--no-color", "--udid", udid)
 		out, err := cmd.Output()
 		if err != nil {
@@ -227,24 +226,24 @@ func GetForegroundApp(udid, packageName, os string) (string, error) {
 			}
 		}
 	} else {
-		cmd := exec.Command(Adb, "-s", udid, "shell", "pidof", packageName)
-		out, err := cmd.Output()
+		command := fmt.Sprintf("%s -s %s shell pidof %s", Adb, udid, packageName)
+		out, err := Execute(command)
 		if err != nil {
 			return "", err
 		}
-		return string(out), nil
+		return strings.Trim(string(out), "\n"), nil
 	}
 	return "", nil
 }
 
 func FindDeviceIP(udid, os string) (string, error) {
 	if os == "android" {
-		cmd := exec.Command(Adb, "-s", udid, "shell", "ip", "route")
-		out, err := cmd.Output()
+		out, err := Execute(fmt.Sprintf("%s -s %s shell ip route", Adb, udid))
 		if err != nil {
 			return "", err
 		}
-		fields := strings.Split(string(out), " ")
+		response := strings.Trim(string(out), "\n")
+		fields := strings.Fields(response)
 		return fields[len(fields)-1], nil
 	} else {
 
