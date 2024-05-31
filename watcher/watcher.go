@@ -130,12 +130,11 @@ func (dw *DeviceWatcher) watchDevices() {
 			if !ok {
 				dw.setAppiumPort(udid)
 				log.Println("Connected:", udid)
-				device.Status = "connected"
 				go dw.sync(false, []DeviceInfo{device})
 				if device.OS == "ios" {
 					go dw.installRunner(udid)
 				}
-			} else if oldDevice.OS == "android" && oldDevice.Status == "connected" && device.Status == "ready" {
+			} else if oldDevice.OS == "android" && oldDevice.Status != device.Status {
 				go dw.sync(false, []DeviceInfo{device})
 			}
 		}
