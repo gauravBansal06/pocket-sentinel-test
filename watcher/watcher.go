@@ -87,12 +87,11 @@ func (dw *DeviceWatcher) watchDevices() {
 			}
 		}
 
-		androidDevices, err := dw.AdbClient.ListDevices()
+		androidDevices, err := dw.AdbClient.ListDeviceSerials()
 		if err != nil {
 			fmt.Println("Failed to list Android devices:", err)
 		} else {
-			for _, androidDevice := range androidDevices {
-				udid := androidDevice.Serial
+			for _, udid := range androidDevices {
 				deviceInfo := DeviceInfo{
 					OS:     "android",
 					UDID:   udid,

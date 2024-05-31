@@ -21,16 +21,8 @@ import (
 )
 
 type AppDirectories struct {
-	WorkingDir   string
-	TestInfo     string
-	Videos       string
-	Assets       string
-	AppiumLogs   string
-	Screenshots  string
-	CommandLogs  string
-	Applications string
-	BinaryLogs   string
-	DiskImages   string
+	WorkingDir, Assets, TestInfo, Videos, CommandLogs, AppiumLogs,
+	BinaryLogs, Screenshots, Applications, DiskImages string
 }
 
 var (
@@ -38,7 +30,8 @@ var (
 	AppDirs              AppDirectories
 	Adb                  string
 	GoIOS                string
-	SanitisatioEndpoint  = "http://localhost:8080/assets"
+	Appium               string
+	SanitisatioEndpoint  = "http://192.168.101.63:8080/assets"
 	AuthenticateEndpoint = "https://stage-accounts.lambdatestinternal.com/api/user/token/auth"
 	SyncEndpoint         = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
 	SyncToken            string
@@ -52,6 +45,18 @@ func OS() string {
 		return "linux"
 	} else {
 		return "windows"
+	}
+}
+
+func GetDeviceCommand(os string) string {
+	switch os {
+	case "android":
+		return Adb // Assuming 'Adb' is the path or command to run Android ADB
+	case "ios":
+		return GoIOS // Assuming 'GoIOS' is the path or command for the iOS management tool
+	default:
+		fmt.Printf("Unsupported OS: %s\n", os)
+		return "" // Return empty if the OS is not supported
 	}
 }
 

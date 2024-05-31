@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func Initialize() {
@@ -14,98 +13,90 @@ func Initialize() {
 	if err != nil {
 		log.Fatalf("Failed to get home directory: %s", err)
 	}
+	baseDir := filepath.Join(homeDir, ".lambdatest")
 
 	common.AppDirs = common.AppDirectories{
-		WorkingDir:   filepath.Join(homeDir, ".lambdatest"),
-		Assets:       filepath.Join(homeDir, ".lambdatest", "assets"),
-		TestInfo:     filepath.Join(homeDir, ".lambdatest", "tests"),
-		Videos:       filepath.Join(homeDir, ".lambdatest", "videos"),
-		CommandLogs:  filepath.Join(homeDir, ".lambdatest", "commandlogs"),
-		AppiumLogs:   filepath.Join(homeDir, ".lambdatest", "appiumlogs"),
-		BinaryLogs:   filepath.Join(homeDir, ".lambdatest", "binarylogs"),
-		Screenshots:  filepath.Join(homeDir, ".lambdatest", "screenshots"),
-		Applications: filepath.Join(homeDir, ".lambdatest", "applications"),
-		DiskImages:   filepath.Join(homeDir, ".lambdatest", "assets", "diskimages"),
+		WorkingDir:   baseDir,
+		Assets:       filepath.Join(baseDir, "assets"),
+		TestInfo:     filepath.Join(baseDir, "tests"),
+		Videos:       filepath.Join(baseDir, "videos"),
+		CommandLogs:  filepath.Join(baseDir, "commandlogs"),
+		AppiumLogs:   filepath.Join(baseDir, "appiumlogs"),
+		BinaryLogs:   filepath.Join(baseDir, "binarylogs"),
+		Screenshots:  filepath.Join(baseDir, "screenshots"),
+		Applications: filepath.Join(baseDir, "applications"),
+		DiskImages:   filepath.Join(baseDir, "assets", "diskimages"),
 	}
 
-	dirs := []string{
+	createDirectories()
+
+	prepare()
+	setEnvironmentVariables()
+	setToolPaths()
+}
+
+func createDirectories() {
+	for _, dir := range []string{
 		common.AppDirs.WorkingDir,
 		common.AppDirs.Assets,
 		common.AppDirs.TestInfo,
 		common.AppDirs.Videos,
-		common.AppDirs.BinaryLogs,
-		common.AppDirs.AppiumLogs,
 		common.AppDirs.CommandLogs,
+		common.AppDirs.AppiumLogs,
+		common.AppDirs.BinaryLogs,
 		common.AppDirs.Screenshots,
 		common.AppDirs.Applications,
 		common.AppDirs.DiskImages,
-	}
-
-	for _, dir := range dirs {
+	} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			log.Fatalf("Failed to create directory '%s': %s", dir, err)
 		}
 	}
-
-	sanitize()
-
-	os.Setenv("ANDROID_HOME", common.AppDirs.Assets)
-
-	common.Adb = fmt.Sprintf("%s/adb", common.AppDirs.Assets)
-	common.GoIOS = fmt.Sprintf("%s/go-ios", common.AppDirs.Assets)
 }
 
-func sanitize() {
-	target := fmt.Sprintf("%s/%s", common.AppDirs.Assets, "adb")
+func setEnvironmentVariables() {
+	os.Setenv("ANDROID_HOME", common.AppDirs.Assets)
+}
+
+func setToolPaths() {
+	common.Adb = fmt.Sprintf("%s/adb", common.AppDirs.Assets)
+	common.GoIOS = fmt.Sprintf("%s/go-ios", common.AppDirs.Assets)
+	common.Appium = fmt.Sprintf("%s/appium", common.AppDirs.Assets)
+}
+
+func prepare() {
+	items := []struct {
+		name       string
+		compressed bool
+	}{
+		{"adb", false},
+		{"go-ios", false},
+		{"DYLIBS", true},
+		{"optool", false},
+		{"WebDriverAgentRunner-Runner.app", true},
+		{"npm", false},
+		{"node", false},
+		{"appium", false},
+	}
+
+	for _, item := range items {
+		ensureFileExists(item.name, item.compressed)
+	}
+}
+
+func ensureFileExists(item string, isCompressed bool) {
+	target := filepath.Join(common.AppDirs.Assets, item)
 	_, err := os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "adb")
-		common.Download(source, target)
+	if err == nil {
+		return
 	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "go-ios")
-	_, err = os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "go-ios")
-		common.Download(source, target)
+	ext := ""
+	if isCompressed {
+		ext = ".zip"
 	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "DYLIBS")
-	_, err = os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "DYLIBS.zip")
-		target = fmt.Sprintf("%s.zip", target)
-		common.Download(source, target)
-		common.Unzip(target, common.AppDirs.Assets)
-	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "optool")
-	_, err = os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "optool")
-		common.Download(source, target)
-	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "WebDriverAgentRunner-Runner.app")
-	_, err = os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "WebDriverAgentRunner-Runner.zip")
-		target = strings.Replace(target, ".app", ".zip", -1)
-		common.Download(source, target)
-		common.Unzip(target, common.AppDirs.Assets)
-	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "npm")
-	_, err = os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "npm")
-		common.Download(source, target)
-	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "node")
-	_, err = os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "node")
-		common.Download(source, target)
-	}
-	target = fmt.Sprintf("%s/%s", common.AppDirs.Assets, "appium")
-	_, err = os.Stat(target)
-	if err != nil {
-		source := fmt.Sprintf("%s/%s", common.SanitisatioEndpoint, "appium")
-		common.Download(source, target)
+	source := fmt.Sprintf("%s/%s%s", common.SanitisatioEndpoint, item, ext)
+	common.Download(source, target+ext)
+	if isCompressed {
+		common.Unzip(target+ext, common.AppDirs.Assets)
 	}
 }

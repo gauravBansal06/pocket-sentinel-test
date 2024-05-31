@@ -79,3 +79,4 @@ exemplar.log
 
 *.db
 .env
+main
