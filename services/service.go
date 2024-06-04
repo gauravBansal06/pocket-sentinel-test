@@ -1,16 +1,42 @@
 package services
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"syscall"
 )
+
+var srv *http.Server
 
 // StartServer initializes and starts an HTTP server on a specified port.
 func StartServer() {
 	log.Println("Starting the HTTP Server on port 4723...")
 	mux := http.NewServeMux()
 	setupRoutes(mux)
-	http.ListenAndServe(":4723", middleware(mux))
+
+	srv = &http.Server{
+		Addr:    ":4723",
+		Handler: middleware(mux),
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Println("error starting server")
+			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+		}
+	}()
+}
+
+func KillServer() {
+	log.Println("shutting down server")
+	if srv == nil {
+		log.Println("server already not started")
+		return
+	}
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Println("Server Shutdown error: ", err)
+	}
 }
 
 // setupRoutes configures the URL endpoints and their corresponding handlers.
@@ -33,6 +59,9 @@ func middleware(next http.Handler) http.Handler {
 			return
 		}
 
+		//log request for debug
+		log.Printf("request: %+v\n", r)
+
 		// Authenticate the request
 		if authenticateRequest(r) {
 			next.ServeHTTP(w, r)
@@ -46,7 +75,7 @@ func middleware(next http.Handler) http.Handler {
 func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Cross-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 }
 
 // authenticateRequest checks if the provided request is authorized.

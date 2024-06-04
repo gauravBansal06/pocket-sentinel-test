@@ -2,27 +2,47 @@ package main
 
 import (
 	"byod/common"
+	"byod/remote"
 	"byod/services"
 	"byod/watcher"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 // main orchestrates the starting sequence of the application.
 func main() {
 	user, key := parseFlags()               // Retrieve user credentials from command-line flags.
 	userInfo := authenticateUser(user, key) // Authenticate the user with the provided credentials.
-	initializeServices(userInfo)            // Initialize the necessary services with authenticated user information.
-	startDeviceWatcher()                    // Start the device watcher to monitor device activities.
-	services.StartServer()                  // Start the main server to handle incoming requests.
+
+	remote.LaunchTunnel(user, key) //launch tunnel
+
+	initializeServices(userInfo) // Initialize the necessary services with authenticated user information.
+	startDeviceWatcher()         // Start the device watcher to monitor device activities.
+
+	services.StartServer() // Start the main server to handle incoming requests.
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	<-sigs
+	fmt.Println("terminating signal received")
+	remote.KillTunnel()
+	services.KillServer()
 }
 
 // parseFlags parses and validates command-line flags for user credentials.
 func parseFlags() (string, string) {
 	user := flag.String("user", "", "Username for the application")
 	key := flag.String("key", "", "Key for the application")
+
+	tunnelBinaryPath := flag.String("tunnel", "", "LT Tunnel Binary Path, default './LT'")
+	env := flag.String("env", "", "env: stage/prod, default 'prod'")
+
 	flag.Parse() // Parse all command-line flags.
 
 	if *user == "" || *key == "" {
@@ -30,6 +50,12 @@ func parseFlags() (string, string) {
 		flag.PrintDefaults() // Display default help messages for flags.
 		os.Exit(1)           // Exit the program with an error code.
 	}
+
+	if *tunnelBinaryPath == "" || *env == "" {
+		log.Println("either --tunnel or --env flags not passed. Defaults will be used {./LT, prod}")
+	}
+	remote.SetTunnelArgs(*tunnelBinaryPath, *env)
+
 	return *user, *key // Return the parsed username and key.
 }
 

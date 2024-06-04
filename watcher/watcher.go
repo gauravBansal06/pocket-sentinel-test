@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"byod/common"
+	"byod/remote"
 	"byod/services"
 	"byod/storage"
 	"encoding/json"
@@ -173,11 +174,16 @@ func (dw *DeviceWatcher) setAppiumPort(udid string) {
 }
 
 func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
+	tunnelId, err := remote.GetTunnelId()
+	if err != nil {
+		log.Printf("Host tunnel id not found: %v", err)
+		log.Println("Please make sure that tunnel is running")
+	}
 	hostInfo := HostInfo{
 		IsSyncHost:                isSync,
 		HostIP:                    common.GetOutboundIP(),
 		HostPort:                  4723,
-		DiscoveryTunnelIdentifier: "LT-MBP-234.local-s8d2bdx09d",
+		DiscoveryTunnelIdentifier: tunnelId, //"LT-MBP-234.local-s8d2bdx09d",
 		HostType:                  common.OS(),
 		HostUserID:                strconv.Itoa(common.UserInfo.UserID),
 		DedicatedOrg:              strconv.Itoa(common.UserInfo.Organization.OrgID),
