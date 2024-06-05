@@ -177,7 +177,7 @@ func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
 		IsSyncHost:                isSync,
 		HostIP:                    common.GetOutboundIP(),
 		HostPort:                  4723,
-		DiscoveryTunnelIdentifier: "LT-MBP-234.local-s8d2bdx09d",
+		DiscoveryTunnelIdentifier: "1028068",
 		HostType:                  common.OS(),
 		HostUserID:                strconv.Itoa(common.UserInfo.UserID),
 		DedicatedOrg:              strconv.Itoa(common.UserInfo.Organization.OrgID),

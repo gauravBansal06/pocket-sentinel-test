@@ -21,7 +21,7 @@ import (
 )
 
 type AppDirectories struct {
-	WorkingDir, Assets, TestInfo, Videos, CommandLogs, AppiumLogs,
+	WorkingDir, Assets, AppiumDir, TestInfo, Videos, CommandLogs, AppiumLogs,
 	BinaryLogs, Screenshots, Applications, DiskImages string
 }
 
@@ -31,7 +31,7 @@ var (
 	Adb                  string
 	GoIOS                string
 	Appium               string
-	SanitisatioEndpoint  = "http://192.168.101.63:8080/assets"
+	SanitisatioEndpoint  = "https://prod-mobile-automation-artefects.lambdatest.com/byod-assets"
 	AuthenticateEndpoint = "https://stage-accounts.lambdatestinternal.com/api/user/token/auth"
 	SyncEndpoint         = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
 	SyncToken            string
