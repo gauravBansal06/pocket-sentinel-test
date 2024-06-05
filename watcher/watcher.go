@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"byod/common"
+	"byod/remote"
 	"byod/services"
 	"byod/storage"
 	"encoding/json"
@@ -39,6 +40,7 @@ type DeviceInfo struct {
 
 type DeviceWatcher struct {
 	HostIP     string
+	TunnelID   string
 	AdbClient  *adb.Adb
 	OldDevices map[string]DeviceInfo
 }
@@ -61,6 +63,12 @@ func (dw *DeviceWatcher) Watch() {
 
 func (dw *DeviceWatcher) watchDevices() {
 	for {
+		tunnelId, err := remote.GetTunnelId()
+		if err != nil {
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		dw.TunnelID = tunnelId
 		dw.HostIP = common.GetOutboundIP() // Update IP if needed
 		newDevices := make(map[string]DeviceInfo)
 		devices, err := ios.ListDevices()
@@ -177,7 +185,7 @@ func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
 		IsSyncHost:                isSync,
 		HostIP:                    common.GetOutboundIP(),
 		HostPort:                  4723,
-		DiscoveryTunnelIdentifier: "1028068",
+		DiscoveryTunnelIdentifier: dw.TunnelID,
 		HostType:                  common.OS(),
 		HostUserID:                strconv.Itoa(common.UserInfo.UserID),
 		DedicatedOrg:              strconv.Itoa(common.UserInfo.Organization.OrgID),

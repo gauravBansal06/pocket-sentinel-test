@@ -80,3 +80,5 @@ exemplar.log
 *.db
 .env
 main
+*.log
+LT

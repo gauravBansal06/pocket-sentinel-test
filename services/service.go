@@ -1,16 +1,41 @@
 package services
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"syscall"
 )
+
+var server *http.Server
 
 // StartServer initializes and starts an HTTP server on a specified port.
 func StartServer() {
 	log.Println("Starting the HTTP Server on port 4723...")
 	mux := http.NewServeMux()
 	setupRoutes(mux)
-	http.ListenAndServe(":4723", middleware(mux))
+	server = &http.Server{
+		Addr:    ":4723",
+		Handler: middleware(mux),
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Println("error starting server")
+			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+		}
+	}()
+}
+
+func KillServer() {
+	log.Println("shutting down server")
+	if server == nil {
+		log.Println("server already not started")
+		return
+	}
+	if err := server.Shutdown(context.Background()); err != nil {
+		log.Println("Server Shutdown error: ", err)
+	}
 }
 
 // setupRoutes configures the URL endpoints and their corresponding handlers.
