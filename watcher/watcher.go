@@ -53,94 +53,109 @@ func NewDeviceWatcher() (*DeviceWatcher, error) {
 	}, nil
 }
 
-func (dw *DeviceWatcher) Watch() {
-	go dw.launchTunnel()
-	go dw.watchDevices()
+func (dw *DeviceWatcher) Watch(stopChan chan struct{}) {
+	defer common.WG.Done()
 
-	dw.keepAlive()
+	common.WG.Add(1)
+	go dw.launchTunnel()
+
+	common.WG.Add(1)
+	go dw.watchDevices(stopChan)
+
+	common.WG.Add(1)
+	dw.keepAlive(stopChan)
 }
 
-func (dw *DeviceWatcher) watchDevices() {
+func (dw *DeviceWatcher) watchDevices(stopChan chan struct{}) {
+	log.Println("starting watchDevices.....")
+	defer common.WG.Done()
+
 	for {
-		dw.HostIP = common.GetOutboundIP() // Update IP if needed
-		newDevices := make(map[string]DeviceInfo)
-		devices, err := ios.ListDevices()
-		if err != nil {
-			log.Println("Failed to list iOS devices:", err)
-		} else {
-			for _, device := range devices.DeviceList {
-				udid := device.Properties.SerialNumber
-				deviceInfo := DeviceInfo{
-					OS:     "ios",
-					UDID:   udid,
-					Status: "connected",
-				}
-				values, _ := ios.GetValues(device)
-				deviceInfo.Name = values.Value.DeviceName
-				deviceInfo.Brand = values.Value.DeviceClass
-				deviceInfo.FullOSVersion = values.Value.ProductVersion
-				deviceInfo.OSVersion = strings.Split(deviceInfo.FullOSVersion, ".")[0]
-				newDevices[udid] = deviceInfo
-				err = dw.syncDiskImages(udid, deviceInfo.FullOSVersion)
-				if err == nil {
-					deviceInfo.Status = "ready"
+		select {
+		case <-stopChan:
+			log.Println("watchDevices :: received termination signal... exiting")
+			return
+		default:
+			dw.HostIP = common.GetOutboundIP() // Update IP if needed
+			newDevices := make(map[string]DeviceInfo)
+			devices, err := ios.ListDevices()
+			if err != nil {
+				log.Println("Failed to list iOS devices:", err)
+			} else {
+				for _, device := range devices.DeviceList {
+					udid := device.Properties.SerialNumber
+					deviceInfo := DeviceInfo{
+						OS:     "ios",
+						UDID:   udid,
+						Status: "connected",
+					}
+					values, _ := ios.GetValues(device)
+					deviceInfo.Name = values.Value.DeviceName
+					deviceInfo.Brand = values.Value.DeviceClass
+					deviceInfo.FullOSVersion = values.Value.ProductVersion
+					deviceInfo.OSVersion = strings.Split(deviceInfo.FullOSVersion, ".")[0]
+					newDevices[udid] = deviceInfo
+					err = dw.syncDiskImages(udid, deviceInfo.FullOSVersion)
+					if err == nil {
+						deviceInfo.Status = "ready"
+					}
 				}
 			}
-		}
 
-		androidDevices, err := dw.AdbClient.ListDeviceSerials()
-		if err != nil {
-			log.Println("Failed to list Android devices:", err)
-		} else {
-			for _, udid := range androidDevices {
-				deviceInfo := DeviceInfo{
-					OS:     "android",
-					UDID:   udid,
-					Status: "connected",
+			androidDevices, err := dw.AdbClient.ListDeviceSerials()
+			if err != nil {
+				log.Println("Failed to list Android devices:", err)
+			} else {
+				for _, udid := range androidDevices {
+					deviceInfo := DeviceInfo{
+						OS:     "android",
+						UDID:   udid,
+						Status: "connected",
+					}
+
+					device := dw.AdbClient.Device(adb.DeviceWithSerial(udid))
+					state, _ := device.State()
+					if state.String() == "StateOnline" {
+						deviceInfo.Status = "ready"
+					}
+					deviceInfo.Name, _ = device.RunCommand("getprop ro.product.model")
+					deviceInfo.Name = strings.Trim(deviceInfo.Name, "\n")
+
+					deviceInfo.Brand, _ = device.RunCommand("getprop ro.product.brand")
+					deviceInfo.Brand = strings.Trim(deviceInfo.Brand, "\n")
+
+					deviceInfo.OSVersion, _ = device.RunCommand("getprop ro.build.version.release")
+					deviceInfo.OSVersion = strings.Trim(deviceInfo.OSVersion, "\n")
+
+					deviceInfo.FullOSVersion = deviceInfo.OSVersion
+					newDevices[udid] = deviceInfo
 				}
+			}
 
-				device := dw.AdbClient.Device(adb.DeviceWithSerial(udid))
-				state, _ := device.State()
-				if state.String() == "StateOnline" {
-					deviceInfo.Status = "ready"
+			for udid, device := range dw.OldDevices {
+				if _, ok := newDevices[udid]; !ok {
+					log.Println("Disconnected:", udid)
+					device.Status = "disconnected"
+					go dw.sync(false, []DeviceInfo{device})
 				}
-				deviceInfo.Name, _ = device.RunCommand("getprop ro.product.model")
-				deviceInfo.Name = strings.Trim(deviceInfo.Name, "\n")
-
-				deviceInfo.Brand, _ = device.RunCommand("getprop ro.product.brand")
-				deviceInfo.Brand = strings.Trim(deviceInfo.Brand, "\n")
-
-				deviceInfo.OSVersion, _ = device.RunCommand("getprop ro.build.version.release")
-				deviceInfo.OSVersion = strings.Trim(deviceInfo.OSVersion, "\n")
-
-				deviceInfo.FullOSVersion = deviceInfo.OSVersion
-				newDevices[udid] = deviceInfo
 			}
-		}
 
-		for udid, device := range dw.OldDevices {
-			if _, ok := newDevices[udid]; !ok {
-				log.Println("Disconnected:", udid)
-				device.Status = "disconnected"
-				go dw.sync(false, []DeviceInfo{device})
-			}
-		}
-
-		for udid, device := range newDevices {
-			oldDevice, ok := dw.OldDevices[udid]
-			if !ok {
-				dw.setAppiumPort(udid)
-				log.Println("Connected:", udid)
-				go dw.sync(false, []DeviceInfo{device})
-				if device.OS == "ios" {
-					go dw.installRunner(udid)
+			for udid, device := range newDevices {
+				oldDevice, ok := dw.OldDevices[udid]
+				if !ok {
+					dw.setAppiumPort(udid)
+					log.Println("Connected:", udid)
+					go dw.sync(false, []DeviceInfo{device})
+					if device.OS == "ios" {
+						go dw.installRunner(udid)
+					}
+				} else if oldDevice.OS == "android" && oldDevice.Status != device.Status {
+					go dw.sync(false, []DeviceInfo{device})
 				}
-			} else if oldDevice.OS == "android" && oldDevice.Status != device.Status {
-				go dw.sync(false, []DeviceInfo{device})
 			}
+			dw.OldDevices = newDevices
+			time.Sleep(3 * time.Second)
 		}
-		dw.OldDevices = newDevices
-		time.Sleep(3 * time.Second)
 	}
 }
 
@@ -154,12 +169,15 @@ func (dw *DeviceWatcher) installRunner(udid string) {
 }
 
 func (dw *DeviceWatcher) launchTunnel() {
+	defer common.WG.Done()
+	log.Println("starting GoIoS launch tunnel.....")
+
 	common.Execute("pkill -SIGTERM remoted go-ios")
 	_, err := common.Execute(fmt.Sprintf("%s tunnel start --pair-record-path=/tmp", common.GoIOS))
 	if err != nil {
-		log.Println("Unable to launch tunnel")
+		log.Println("Unable to launch GoIoS tunnel: ", err)
 	} else {
-		log.Println("Tunnel launched")
+		log.Println("GoIoS Tunnel launched")
 	}
 }
 
@@ -168,7 +186,7 @@ func (dw *DeviceWatcher) setAppiumPort(udid string) {
 	storage.Store.Get("Appium_Port_"+udid, &port)
 	if port == "" {
 		storage.Store.Put("Appium_Port_"+udid, common.BaseAppiumPort)
-		port, _ := strconv.Atoi(port)
+		port, _ := strconv.Atoi(common.BaseAppiumPort)
 		common.BaseAppiumPort = fmt.Sprintf("%d", (port + 1))
 	}
 }
@@ -176,8 +194,8 @@ func (dw *DeviceWatcher) setAppiumPort(udid string) {
 func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
 	tunnelId, err := remote.GetTunnelId()
 	if err != nil {
-		log.Printf("Host tunnel id not found: %v", err)
-		log.Println("Please make sure that tunnel is running")
+		log.Println("sync :: Host tunnel id not found: ", err)
+		log.Println("sync :: Please make sure that tunnel is running")
 	}
 	hostInfo := HostInfo{
 		IsSyncHost:                isSync,
@@ -190,29 +208,38 @@ func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
 		Devices:                   devices,
 	}
 	for _, device := range devices {
-		log.Println("Marking", device.UDID, device.Status, "...")
+		log.Println("sync :: Marking", device.UDID, device.Status, "...")
 	}
 	jsonInfo, err := json.Marshal(hostInfo)
 	if err != nil {
-		log.Println("Error marshaling data: ", err.Error())
+		log.Println("sync :: Error marshaling data: ", err.Error())
 		return
 	}
 	status, _, err := services.MakePostRequest(common.SyncEndpoint, jsonInfo)
 	if err != nil {
-		log.Println("Error while updating device info", err.Error())
+		log.Println("sync :: Error while updating device info: ", err.Error())
 		return
 	}
-	log.Println(status)
+	log.Println("sync :: response status code: ", status)
 }
 
-func (dw *DeviceWatcher) keepAlive() {
+func (dw *DeviceWatcher) keepAlive(stopChan chan struct{}) {
+	log.Println("starting keepAlive.....")
+	defer common.WG.Done()
+
 	for {
-		time.Sleep(60 * time.Second)
-		var devices []DeviceInfo
-		for _, device := range dw.OldDevices {
-			devices = append(devices, device)
+		select {
+		case <-stopChan:
+			log.Println("keepAlive :: received termination signal... exiting")
+			return
+		default:
+			time.Sleep(60 * time.Second)
+			var devices []DeviceInfo
+			for _, device := range dw.OldDevices {
+				devices = append(devices, device)
+			}
+			dw.sync(true, devices)
 		}
-		dw.sync(true, devices)
 	}
 }
 
@@ -230,4 +257,34 @@ func (dw *DeviceWatcher) syncDiskImages(udid, version string) error {
 
 	_, err = common.Execute(fmt.Sprintf("%s image auto --basedir=%s/diskimages --udid %s", common.GoIOS, common.AppDirs.Assets, udid))
 	return err
+}
+
+// binary host sync call at start and stop
+func SyncBinaryHost() {
+	tunnelId, err := remote.GetTunnelId()
+	if err != nil {
+		log.Println("SyncBinaryHost :: Host tunnel id not found: ", err)
+		log.Println("SyncBinaryHost :: Please make sure that tunnel is running")
+	}
+	hostInfo := HostInfo{
+		IsSyncHost:                true,
+		HostIP:                    common.GetOutboundIP(),
+		HostPort:                  4723,
+		DiscoveryTunnelIdentifier: tunnelId, //"LT-MBP-234.local-s8d2bdx09d",
+		HostType:                  common.OS(),
+		HostUserID:                strconv.Itoa(common.UserInfo.UserID),
+		DedicatedOrg:              strconv.Itoa(common.UserInfo.Organization.OrgID),
+		Devices:                   []DeviceInfo{},
+	}
+	jsonInfo, err := json.Marshal(hostInfo)
+	if err != nil {
+		log.Println("SyncBinaryHost :: Error marshaling data: ", err.Error())
+		return
+	}
+	status, _, err := services.MakePostRequest(common.SyncEndpoint, jsonInfo)
+	if err != nil {
+		log.Println("SyncBinaryHost :: Error while updating device info: ", err.Error())
+		return
+	}
+	log.Println("SyncBinaryHost :: response status code: ", status)
 }

@@ -5,13 +5,14 @@ import (
 	"byod/remote"
 	"byod/services"
 	"byod/watcher"
+	"context"
 	"encoding/base64"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 // main orchestrates the starting sequence of the application.
@@ -20,19 +21,24 @@ func main() {
 	userInfo := authenticateUser(user, key) // Authenticate the user with the provided credentials.
 
 	remote.LaunchTunnel(user, key) //launch tunnel
+	time.Sleep(7 * time.Second)    //to get info api port up
+
+	//create stop channel for graceful shutdown
+	stopChan := make(chan struct{})
+	mainExit := make(chan struct{})
+	go shutdownListener(stopChan, mainExit)
 
 	initializeServices(userInfo) // Initialize the necessary services with authenticated user information.
-	startDeviceWatcher()         // Start the device watcher to monitor device activities.
 
-	services.StartServer() // Start the main server to handle incoming requests.
+	watcher.SyncBinaryHost() //this is to mark previously connected devices disconnected and clear any tests if running as binary is started now
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	startDeviceWatcher(stopChan)                         // Start the device watcher to monitor device activities.
+	go services.ResetAuthenticatedJwtUsersCron(stopChan) //to reset jwt token map after 30 mins
 
-	<-sigs
-	fmt.Println("terminating signal received")
-	remote.KillTunnel()
-	services.KillServer()
+	services.StartServer() // Start the main server at end to handle incoming requests.
+
+	//wait on main exit post graceful shutdown in shutdownListener
+	<-mainExit
 }
 
 // parseFlags parses and validates command-line flags for user credentials.
@@ -71,18 +77,52 @@ func authenticateUser(user, key string) common.UserDetails {
 
 // initializeServices initializes application services and global state with the user's details.
 func initializeServices(userInfo common.UserDetails) {
+	log.Println("staring services initialization")
+
 	services.Initialize() // Initialize basic services.
+
 	// Set global user information and synchronization token for the session.
 	common.UserInfo = userInfo
 	common.SyncToken = base64.StdEncoding.EncodeToString([]byte(userInfo.Username + ":" + userInfo.ApiToken))
+
+	log.Println("services initialization complete")
 }
 
 // startDeviceWatcher initializes and starts a device watcher to monitor connected devices.
-func startDeviceWatcher() {
+func startDeviceWatcher(stopChan chan struct{}) {
+	log.Println("starting device watcher process....")
 	deviceWatcher, err := watcher.NewDeviceWatcher() // Create a new device watcher.
 	if err != nil {
-		log.Println("Error initializing device watcher:", err)
-		os.Exit(1) // Exit the program if the device watcher cannot be initialized.
+		log.Println("Error initializing device watcher: ", err)
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT) // Exit the program if the device watcher cannot be initialized.
 	}
-	go deviceWatcher.Watch() // Run the device watcher in a new goroutine.
+	common.WG.Add(1)
+	go deviceWatcher.Watch(stopChan) // Run the device watcher in a new goroutine.
+}
+
+// function for graceful shutdown
+func shutdownListener(stopChan, mainExit chan struct{}) {
+	log.Println("starting shutdown listener...waiting on signal")
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	signalReceived := <-sigChan
+	log.Println("shutdownListener :: termination signal received: ", signalReceived.String())
+	log.Println("starting shutdown of binary....")
+
+	close(stopChan)
+
+	// Create a context with a timeout to ensure the server shuts down gracefully
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	services.KillServer(ctx)
+
+	common.WG.Wait() //wait for all go routines to finish
+	log.Println("shutdownListener: all go routines finished")
+
+	watcher.SyncBinaryHost()
+	remote.KillTunnel()
+	log.Println("binary shutdown complete..")
+	close(mainExit)
 }

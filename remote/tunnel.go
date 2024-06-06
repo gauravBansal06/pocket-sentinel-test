@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
-	"time"
+	"syscall"
 )
 
 var tunnelProcess *os.Process
@@ -70,20 +69,19 @@ func GetTunnelId() (string, error) {
 func LaunchTunnel(user, key string) {
 	infoAPIPort := "8000"
 
-	_, err := net.DialTimeout("tcp", net.JoinHostPort("localhost", infoAPIPort), time.Second)
-	if err == nil {
-		err = fmt.Errorf("Port (%s) is busy ... can't start binary tunnel. Pls make sure that port 9090, 8000 and 4723 is free\n", infoAPIPort)
-		log.Printf("%v\n", err)
-		os.Exit(1)
-	}
-
 	cmd := exec.Command(tunnelBinaryPath, "--user", user, "--key", key, "--infoAPIPort", infoAPIPort)
 	if env == "stage" {
 		cmd = exec.Command(tunnelBinaryPath, "--user", user, "--key", key, "--infoAPIPort", infoAPIPort, "--env", "stage")
 	}
-	err = cmd.Start()
+	// Create a new process group for the child process
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
+	err := cmd.Start()
 	if err != nil {
-		log.Printf("failed to start tunnel: %v\n", err)
+		log.Printf("%v\n", err)
+		log.Println("Pls make sure that port 9090, 8000 and 4723 are free")
 		os.Exit(1)
 	}
 
@@ -94,7 +92,7 @@ func LaunchTunnel(user, key string) {
 }
 
 func KillTunnel() {
-	log.Println("killing tunnel")
+	log.Println("killing tunnel...")
 	if tunnelProcess == nil {
 		log.Println("tunnel already not started")
 		return
@@ -102,5 +100,7 @@ func KillTunnel() {
 	err := tunnelProcess.Kill()
 	if err != nil {
 		log.Println("error killing tunnel process: ", err)
+		return
 	}
+	log.Println("tunnel process killed.....")
 }

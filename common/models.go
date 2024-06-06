@@ -64,15 +64,31 @@ type DesiredCapabilities struct {
 	AppiumConnectHardwareKeyboard bool   `json:"appium:connectHardwareKeyboard"`
 }
 
+type Organization struct {
+	OrgID          int         `json:"id"`
+	Name           string      `json:"name"`
+	PlanAttributes interface{} `json:"plan_attributes"`
+}
+
 type UserDetails struct {
-	UserID       int    `json:"id"`
-	Name         string `json:"name"`
-	Username     string `json:"username"`
-	Status       string `json:"status"`
-	ApiToken     string `json:"apiToken"`
-	Organization struct {
-		OrgID          int         `json:"id"`
-		Name           string      `json:"name"`
-		PlanAttributes interface{} `json:"plan_attributes"`
-	}
+	UserID       int          `json:"id"`
+	Name         string       `json:"name"`
+	Email        string       `json:"email"`
+	Username     string       `json:"username"`
+	Status       string       `json:"status"`
+	Role         string       `json:"organization_role"`
+	OrgID        int          `json:"org_id"`
+	ApiToken     string       `json:"apiToken"`
+	Organization Organization `json:"organization"`
+}
+
+type BearerAuthUserDetails struct {
+	UserID   int    `json:"userID"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Status   string `json:"status"`
+	Role     string `json:"role"`
+	Token    string `json:"token"`
+	OrgID    int    `json:"orgID"`
 }

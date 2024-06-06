@@ -6,12 +6,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 func Initialize() {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatalf("Failed to get home directory: %s", err)
+		log.Println("Failed to get home directory: ", err)
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	}
 	baseDir := filepath.Join(homeDir, ".lambdatest")
 
@@ -49,7 +51,8 @@ func createDirectories() {
 		common.AppDirs.DiskImages,
 	} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			log.Fatalf("Failed to create directory '%s': %s", dir, err)
+			log.Printf("Failed to create directory '%s': %v\n", dir, err)
+			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 		}
 	}
 }

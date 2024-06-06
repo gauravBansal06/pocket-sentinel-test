@@ -16,6 +16,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/mholt/archiver"
 )
@@ -26,16 +28,25 @@ type AppDirectories struct {
 }
 
 var (
-	BaseAppiumPort       = "4724"
-	AppDirs              AppDirectories
-	Adb                  string
-	GoIOS                string
-	Appium               string
-	SanitisatioEndpoint  = "http://192.168.101.63:8080/assets"
-	AuthenticateEndpoint = "https://stage-accounts.lambdatestinternal.com/api/user/token/auth"
-	SyncEndpoint         = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
-	SyncToken            string
-	UserInfo             UserDetails
+	WG sync.WaitGroup
+
+	BaseAppiumPort = "4724"
+	AppDirs        AppDirectories
+	Adb            string
+	GoIOS          string
+	Appium         string
+
+	SanitisatioEndpoint = "https://prod-mobile-automation-artefects.lambdatest.com/byod-assets"
+
+	BasicAuthenticateEndpoint  = "https://stage-accounts.lambdatestinternal.com/api/user/token/auth"
+	BearerAuthenticateEndpoint = "https://stage-accounts.lambdatestinternal.com/api/user/auth"
+	UserContextKey             = "userInfo"
+
+	SyncEndpoint          = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
+	BinaryStartupEndpoint = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/host/startup"
+
+	SyncToken string
+	UserInfo  UserDetails
 )
 
 func OS() string {
@@ -78,7 +89,8 @@ func ExecuteAsync(command string) (*exec.Cmd, error) {
 func GetOutboundIP() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		log.Fatal(err)
+		log.Println("error fetching outboubd ip: ", err)
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	}
 	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)

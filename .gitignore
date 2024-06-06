@@ -79,4 +79,10 @@ exemplar.log
 
 *.db
 .env
+
 main
+assets/
+*.crt
+*.key
+*.log
+*.db
