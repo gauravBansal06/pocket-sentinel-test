@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // AuthenticatedUsers stores a map of authenticated users to avoid reauthentication overhead.
@@ -116,6 +116,8 @@ func JWTAuthentication(bearerToken string) (common.UserDetails, error) {
 		if !IsJWTExpired(token) {
 			userInfo, _ := userDetails.(common.UserDetails)
 			return userInfo, nil
+		} else {
+			AuthenticatedJwtUsers.Delete(token)
 		}
 	}
 

@@ -7,7 +7,7 @@ toolchain go1.22.2
 require (
 	github.com/boltdb/bolt v1.3.1
 	github.com/danielpaulus/go-ios v1.0.122-0.20240513071954-6a94ebeb7d61
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/zach-klippenstein/goadb v0.0.0-20201208042340-620e0e950ed7
