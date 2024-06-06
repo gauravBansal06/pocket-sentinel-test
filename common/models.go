@@ -43,8 +43,6 @@ type AlwaysMatch struct {
 	PlatformName                  string `json:"platformName"`
 	AppiumAutomationName          string `json:"appium:automationName"`
 	AppiumNoReset                 bool   `json:"appium:noReset"`
-	AppiumAppPackage              string `json:"appium:appPackage"`
-	AppiumAppActivity             string `json:"appium:appActivity"`
 	AppiumEnsureWebviewsHavePages bool   `json:"appium:ensureWebviewsHavePages"`
 	AppiumNativeWebScreenshot     bool   `json:"appium:nativeWebScreenshot"`
 	AppiumNewCommandTimeout       int    `json:"appium:newCommandTimeout"`

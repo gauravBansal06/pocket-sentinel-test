@@ -23,7 +23,7 @@ import (
 )
 
 type AppDirectories struct {
-	WorkingDir, Assets, TestInfo, Videos, CommandLogs, AppiumLogs,
+	WorkingDir, Assets, AppiumDir, TestInfo, Videos, CommandLogs, AppiumLogs,
 	BinaryLogs, Screenshots, Applications, DiskImages string
 }
 
@@ -42,11 +42,9 @@ var (
 	BearerAuthenticateEndpoint = "https://stage-accounts.lambdatestinternal.com/api/user/auth"
 	UserContextKey             = "userInfo"
 
-	SyncEndpoint          = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
-	BinaryStartupEndpoint = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/host/startup"
-
-	SyncToken string
-	UserInfo  UserDetails
+	SyncEndpoint = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
+	SyncToken    string
+	UserInfo     UserDetails
 )
 
 func OS() string {

@@ -28,6 +28,7 @@ func Initialize() {
 		Screenshots:  filepath.Join(baseDir, "screenshots"),
 		Applications: filepath.Join(baseDir, "applications"),
 		DiskImages:   filepath.Join(baseDir, "assets", "diskimages"),
+		AppiumDir:    filepath.Join(baseDir, "assets", "appium"),
 	}
 
 	createDirectories()
@@ -64,7 +65,7 @@ func setEnvironmentVariables() {
 func setToolPaths() {
 	common.Adb = fmt.Sprintf("%s/adb", common.AppDirs.Assets)
 	common.GoIOS = fmt.Sprintf("%s/go-ios", common.AppDirs.Assets)
-	common.Appium = fmt.Sprintf("%s/appium", common.AppDirs.Assets)
+	common.Appium = fmt.Sprintf("%s/node_modules/.bin/appium", common.AppDirs.AppiumDir)
 }
 
 func prepare() {
@@ -77,14 +78,15 @@ func prepare() {
 		{"DYLIBS", true},
 		{"optool", false},
 		{"WebDriverAgentRunner-Runner.app", true},
-		{"npm", false},
 		{"node", false},
-		{"appium", false},
+		{"scrcpy-server.jar", false},
 	}
 
 	for _, item := range items {
 		ensureFileExists(item.name, item.compressed)
 	}
+
+	appiumSetup()
 }
 
 func ensureFileExists(item string, isCompressed bool) {
@@ -102,4 +104,24 @@ func ensureFileExists(item string, isCompressed bool) {
 	if isCompressed {
 		common.Unzip(target+ext, common.AppDirs.Assets)
 	}
+}
+
+func appiumSetup() {
+	appiumDir := common.AppDirs.AppiumDir
+
+	// Commands to install Appium and its drivers
+	commands := []string{
+		fmt.Sprintf("npm install --prefix %s appium", common.AppDirs.AppiumDir),
+		fmt.Sprintf("%s/node_modules/.bin/appium driver install xcuitest", appiumDir),
+		fmt.Sprintf("%s/node_modules/.bin/appium driver install uiautomator2", appiumDir),
+	}
+
+	// Execute each command sequentially
+	for _, cmd := range commands {
+		log.Println(cmd)
+		if _, err := common.Execute(cmd); err != nil {
+			log.Printf("Failed to execute command '%s': %v", cmd, err)
+		}
+	}
+
 }

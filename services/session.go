@@ -165,7 +165,6 @@ func getSessionPayload(testInfo common.TestInfo) (io.ReadCloser, int64) {
 				PlatformName:                  testInfo.OS,
 				AppiumAutomationName:          automationName,
 				AppiumNoReset:                 true,
-				AppiumAppPackage:              testInfo.AppPackage,
 				AppiumEnsureWebviewsHavePages: true,
 				AppiumNativeWebScreenshot:     true,
 				AppiumNewCommandTimeout:       7200,

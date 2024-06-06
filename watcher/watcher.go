@@ -40,6 +40,7 @@ type DeviceInfo struct {
 
 type DeviceWatcher struct {
 	HostIP     string
+	TunnelID   string
 	AdbClient  *adb.Adb
 	OldDevices map[string]DeviceInfo
 }
@@ -76,6 +77,12 @@ func (dw *DeviceWatcher) watchDevices(stopChan chan struct{}) {
 			log.Println("watchDevices :: received termination signal... exiting")
 			return
 		default:
+			tunnelId, err := remote.GetTunnelId()
+			if err != nil {
+				time.Sleep(3 * time.Second)
+				continue
+			}
+			dw.TunnelID = tunnelId
 			dw.HostIP = common.GetOutboundIP() // Update IP if needed
 			newDevices := make(map[string]DeviceInfo)
 			devices, err := ios.ListDevices()
@@ -192,16 +199,20 @@ func (dw *DeviceWatcher) setAppiumPort(udid string) {
 }
 
 func (dw *DeviceWatcher) sync(isSync bool, devices []DeviceInfo) {
-	tunnelId, err := remote.GetTunnelId()
-	if err != nil {
-		log.Println("sync :: Host tunnel id not found: ", err)
-		log.Println("sync :: Please make sure that tunnel is running")
+	tunnelId := dw.TunnelID
+	if tunnelId == "" {
+		var err error
+		tunnelId, err = remote.GetTunnelId()
+		if err != nil {
+			log.Println("sync :: error fetching tunnel id: ", err)
+			return
+		}
 	}
 	hostInfo := HostInfo{
 		IsSyncHost:                isSync,
 		HostIP:                    common.GetOutboundIP(),
 		HostPort:                  4723,
-		DiscoveryTunnelIdentifier: tunnelId, //"LT-MBP-234.local-s8d2bdx09d",
+		DiscoveryTunnelIdentifier: tunnelId,
 		HostType:                  common.OS(),
 		HostUserID:                strconv.Itoa(common.UserInfo.UserID),
 		DedicatedOrg:              strconv.Itoa(common.UserInfo.Organization.OrgID),
@@ -260,11 +271,16 @@ func (dw *DeviceWatcher) syncDiskImages(udid, version string) error {
 }
 
 // binary host sync call at start and stop
-func SyncBinaryHost() {
+func SyncBinaryHost(retry int) {
 	tunnelId, err := remote.GetTunnelId()
 	if err != nil {
 		log.Println("SyncBinaryHost :: Host tunnel id not found: ", err)
-		log.Println("SyncBinaryHost :: Please make sure that tunnel is running")
+		if retry > 0 {
+			log.Println("SyncBinaryHost: retrying after 1 sec :: retries left: ", retry-1)
+			time.Sleep(1 * time.Second)
+			SyncBinaryHost(retry - 1)
+			return
+		}
 	}
 	hostInfo := HostInfo{
 		IsSyncHost:                true,

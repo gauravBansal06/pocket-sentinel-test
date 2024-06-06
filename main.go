@@ -30,7 +30,7 @@ func main() {
 
 	initializeServices(userInfo) // Initialize the necessary services with authenticated user information.
 
-	watcher.SyncBinaryHost() //this is to mark previously connected devices disconnected and clear any tests if running as binary is started now
+	watcher.SyncBinaryHost(1) //this is to mark previously connected devices disconnected and clear any tests if running as binary is started now
 
 	startDeviceWatcher(stopChan)                         // Start the device watcher to monitor device activities.
 	go services.ResetAuthenticatedJwtUsersCron(stopChan) //to reset jwt token map after 30 mins
@@ -46,8 +46,8 @@ func parseFlags() (string, string) {
 	user := flag.String("user", "", "Username for the application")
 	key := flag.String("key", "", "Key for the application")
 
-	tunnelBinaryPath := flag.String("tunnel", "", "LT Tunnel Binary Path, default './LT'")
-	env := flag.String("env", "", "env: stage/prod, default 'prod'")
+	env := flag.String("env", "stage", "env: stage/prod, default 'prod'")
+	tunnel := flag.String("tunnel", "./LT", "LT Tunnel Binary Path, default './LT'")
 
 	flag.Parse() // Parse all command-line flags.
 
@@ -56,12 +56,7 @@ func parseFlags() (string, string) {
 		flag.PrintDefaults() // Display default help messages for flags.
 		os.Exit(1)           // Exit the program with an error code.
 	}
-
-	if *tunnelBinaryPath == "" || *env == "" {
-		log.Println("either --tunnel or --env flags not passed. Defaults will be used {./LT, prod}")
-	}
-	remote.SetTunnelArgs(*tunnelBinaryPath, *env)
-
+	remote.SetTunnelArgs(*tunnel, *env)
 	return *user, *key // Return the parsed username and key.
 }
 
@@ -121,7 +116,7 @@ func shutdownListener(stopChan, mainExit chan struct{}) {
 	common.WG.Wait() //wait for all go routines to finish
 	log.Println("shutdownListener: all go routines finished")
 
-	watcher.SyncBinaryHost()
+	watcher.SyncBinaryHost(1) //to mark all devices disconnected and clear any running tests without waiting for keep alive timeout
 	remote.KillTunnel()
 	log.Println("binary shutdown complete..")
 	close(mainExit)
