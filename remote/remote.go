@@ -50,21 +50,21 @@ func GetTunnelId() (string, error) {
 	log.Println("fetching tunnel info")
 	resp, err := http.Get("http://127.0.0.1:8000/api/v1.0/info")
 	if err != nil {
-		log.Println("failed to get tunnel information", err)
+		log.Println("failed to get tunnel information: ", err)
 		return "", err
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("failed to read tunnel information", err)
+		log.Println("failed to read tunnel information: ", err)
 		return "", err
 	}
 
 	tunnelInfo = TunnelInfo{}
 	err = json.Unmarshal(body, &tunnelInfo)
 	if err != nil {
-		log.Println("failed to parse tunnel information", err)
+		log.Println("failed to parse tunnel information: ", err)
 		return "", err
 	}
 	if tunnelInfo.Status == "FAILED" {
@@ -90,7 +90,7 @@ func LaunchTunnel(user, key string) {
 	err := cmd.Start()
 	if err != nil {
 		log.Printf("failed to start tunnel: %v\n", err)
-		log.Println("Pls make sure that port 9090, 8000 and 4723 are free")
+		log.Println("Please make sure that port 9090, 8000 and 4723 are free")
 		os.Exit(1)
 	}
 

@@ -171,7 +171,7 @@ func (dw *DeviceWatcher) installRunner(udid string) {
 	command := fmt.Sprintf("%s install --path=%s --udid %s", common.GoIOS, runner, udid)
 	_, err := common.Execute(command)
 	if err != nil {
-		log.Println("error while installing runner", err.Error())
+		log.Println("error while installing runner: ", err.Error())
 	}
 }
 

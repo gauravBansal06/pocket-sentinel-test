@@ -59,7 +59,7 @@ func UnpackIPA(ipa string) (string, error) {
 	zip := archiver.NewZip()
 	err := zip.Unarchive(ipa, tempDir)
 	if err != nil {
-		log.Println("UnpackIPA: Couldn't unzip the IPA file:", err)
+		log.Println("UnpackIPA: Couldn't unzip the IPA file: ", err)
 		return "", err
 	}
 	log.Println("[+] Unpacking the .ipa file DONE...")
@@ -71,7 +71,7 @@ func getAppDirectory() (string, error) {
 	payloadPath := filepath.Join(tempDir, "Payload")
 	entries, err := os.ReadDir(payloadPath)
 	if err != nil {
-		log.Println("GetAppDirectory: Error reading Payload directory:", err)
+		log.Println("GetAppDirectory: Error reading Payload directory: ", err)
 		return "", err
 	}
 	for _, entry := range entries {
@@ -94,7 +94,7 @@ func copyLibraryAndLoad(appDir string) {
 	copyDir(dylibFolder, dylibPath)
 	appInfo, err := getAppInfo(appDir)
 	if err != nil {
-		log.Println("CopyLibraryAndLoad: Error getting app info:", err)
+		log.Println("CopyLibraryAndLoad: Error getting app info: ", err)
 		return
 	}
 	appBinary := filepath.Join(appDir, appInfo.CFBundleExecutable)
@@ -138,7 +138,7 @@ func loadFrameworks(dir string, appBinary string) error {
 			} else {
 				cmd := exec.Command(optool, "install", "-c", "load", "-p", "@executable_path/Dylibs/"+frameworkName+"/"+binaryName, "-t", appBinary)
 				if err := cmd.Run(); err != nil {
-					log.Println("LoadFrameworks: Failed to inject ", binaryName, "into", appBinary, ":", err)
+					log.Println("LoadFrameworks: Failed to inject ", binaryName, "into ", appBinary, ": ", err)
 				}
 			}
 		}

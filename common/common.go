@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,8 @@ type AppDirectories struct {
 	BinaryLogs, Screenshots, Applications, DiskImages string
 }
 
+type UserContextKeyType string
+
 var (
 	WG sync.WaitGroup
 
@@ -40,7 +43,7 @@ var (
 
 	BasicAuthenticateEndpoint  = "https://stage-accounts.lambdatestinternal.com/api/user/token/auth"
 	BearerAuthenticateEndpoint = "https://stage-accounts.lambdatestinternal.com/api/user/auth"
-	UserContextKey             = "userInfo"
+	UserContextKey             = UserContextKeyType("userInfo")
 
 	SyncEndpoint = "https://mobile-api-gauravb-byod-dev.lambdatestinternal.com/mobile-automation/api/v1/byod/devices/sync"
 	SyncToken    string
@@ -71,11 +74,16 @@ func GetDeviceCommand(os string) string {
 
 func Execute(command string) (string, error) {
 	cmd := exec.Command("sh", "-c", command)
-	out, err := cmd.Output()
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("***** err: %v :: stdErr: %v *****", err, stderr.String())
 	}
-	return strings.Trim(string(out), "\n"), err
+	return strings.Trim(stdout.String(), "\n"), err
 }
 
 func ExecuteAsync(command string) (*exec.Cmd, error) {
@@ -114,7 +122,7 @@ func ForwardLocalPortToProxy(port string, inconn net.Conn) {
 
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		log.Println("DialTCP failed", port)
+		log.Println("DialTCP failed on port ", port)
 		return
 	}
 
@@ -159,7 +167,7 @@ func ForwardLocalPortToProxy(port string, inconn net.Conn) {
 func KillProcessOnPort(port string) error {
 	output, err := Execute(fmt.Sprintf("lsof -i:%s", port))
 	if err != nil {
-		return fmt.Errorf("failed to execute lsof: %s", err)
+		return fmt.Errorf("failed to execute lsof: %v", err)
 	}
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	scanner.Scan()
@@ -174,7 +182,7 @@ func KillProcessOnPort(port string) error {
 	pid := columns[1]
 	_, err = Execute(fmt.Sprintf("kill -9 %s", pid))
 	if err != nil {
-		return fmt.Errorf("failed to kill process: %s", err)
+		return fmt.Errorf("failed to kill process: %v", err)
 	}
 	return nil
 }
@@ -265,7 +273,7 @@ func Download(source, target string) error {
 	log.Println("Downloading", source, "at", target)
 	resp, err := http.Get(source)
 	if err != nil {
-		log.Println("Failed to download", source)
+		log.Println("Failed to download: ", source)
 		return err
 	}
 	defer resp.Body.Close()
@@ -285,7 +293,7 @@ func Unzip(source, dest string) error {
 	err := zip.Unarchive(source, dest)
 	os.Remove(source)
 	if err != nil {
-		log.Println("UnpackIPA: Couldn't unzip the file:", err)
+		log.Println("UnpackIPA: Couldn't unzip the file: ", err)
 		return err
 	}
 	os.Remove(source)

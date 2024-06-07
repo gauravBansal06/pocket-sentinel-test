@@ -21,7 +21,7 @@ func main() {
 	userInfo := authenticateUser(user, key) // Authenticate the user with the provided credentials.
 
 	remote.LaunchTunnel(user, key) //launch tunnel
-	time.Sleep(7 * time.Second)    //to get info api port up
+	time.Sleep(4 * time.Second)    //to get tunnel up and runing
 
 	//create stop channel for graceful shutdown
 	stopChan := make(chan struct{})
@@ -64,7 +64,7 @@ func parseFlags() (string, string) {
 func authenticateUser(user, key string) common.UserDetails {
 	userInfo, err := services.AuthenticateUser(user, key)
 	if err != nil {
-		log.Println("Unable to authenticate username and access key:", err)
+		log.Println("Unable to authenticate username and access key: ", err)
 		os.Exit(1) // Exit the program if authentication fails.
 	}
 	return userInfo // Return the authenticated user's details.
